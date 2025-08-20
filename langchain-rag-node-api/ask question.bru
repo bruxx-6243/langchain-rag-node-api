@@ -1,0 +1,18 @@
+meta {
+  name: ask question
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{BASE_URL}}/ask-question
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "question": "What is this document about?",
+    "filename": "{{filename}}"
+  }
+}

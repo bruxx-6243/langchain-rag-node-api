@@ -1,0 +1,22 @@
+meta {
+  name: upload file
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{BASE_URL}}/upload-file
+  body: multipartForm
+  auth: inherit
+}
+
+body:multipart-form {
+  file: @file(C:\Users\LENOVO\Downloads\why_llm_software_dev.txt)
+}
+
+script:post-response {
+  const filename = res.getBody().filename;
+  
+  bru.setEnvVar("filename", filename);
+  
+}

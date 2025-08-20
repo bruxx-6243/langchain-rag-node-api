@@ -1,0 +1,27 @@
+{
+  "name": "langchain-rag-api-node",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "setup": "node setup-env.js",
+    "test": "node test-rag.mjs"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.19.0",
+    "@langchain/anthropic": "^0.3.26",
+    "@langchain/community": "^0.3.53",
+    "@langchain/core": "^0.3.72",
+    "dotenv": "^17.2.1",
+    "hono": "^4.9.2",
+    "langchain": "^0.3.31"
+  },
+  "devDependencies": {
+    "@types/dotenv": "^8.2.3",
+    "@types/node": "^20.11.17",
+    "tsc-alias": "^1.8.16",
+    "tsx": "^4.7.1",
+    "typescript": "^5.8.3"
+  }
+}
