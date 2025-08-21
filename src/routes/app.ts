@@ -4,6 +4,7 @@ import { CONFIGS } from "@/constants";
 import { RecursiveCharacterTextSplitter } from "langchain/text_splitter";
 import { BM25Retriever } from "@langchain/community/retrievers/bm25";
 import { createAnthropicRagChain } from "@/anthropic";
+import { redisCache } from "@/lib/redis";
 
 const app = new Hono();
 
@@ -23,6 +24,8 @@ app.post("/upload-file", async (ctx) => {
     const storage = new Storage(CONFIGS.filePath);
 
     const { filename } = await storage._store(file);
+
+    await redisCache.clearFileCache(filename);
 
     return ctx.json(
       {
@@ -46,6 +49,20 @@ app.post("/ask-question", async (ctx) => {
 
     if (!body.question || !body.filename) {
       return ctx.json({ message: "No question or filename provided" }, 400);
+    }
+
+    const cachedAnswer = await redisCache.get(body.question, body.filename);
+
+    if (cachedAnswer) {
+      return ctx.json(
+        {
+          message: "Question answered from cache",
+          question: body.question,
+          answer: cachedAnswer,
+          cached: true,
+        },
+        200
+      );
     }
 
     const storage = new Storage(CONFIGS.filePath);
@@ -78,17 +95,54 @@ app.post("/ask-question", async (ctx) => {
 
     const result = await ragChain.invoke(body.question);
 
+    await redisCache.set(body.question, body.filename, result);
+
     return ctx.json(
       {
         message: "Question answered successfully",
         question: body.question,
         answer: result,
+        cached: false,
       },
       200
     );
   } catch (error) {
     console.error("Error asking question:", error);
     return ctx.json({ message: "Error asking question" }, 500);
+  }
+});
+
+app.get("/cache-stats", async (ctx) => {
+  try {
+    const stats = await redisCache.getStats();
+    return ctx.json(
+      {
+        message: "Cache statistics retrieved successfully",
+        stats,
+      },
+      200
+    );
+  } catch (error) {
+    console.error("Error getting cache stats:", error);
+    return ctx.json({ message: "Error getting cache statistics" }, 500);
+  }
+});
+
+app.delete("/clear-cache/:filename", async (ctx) => {
+  try {
+    const filename = ctx.req.param("filename");
+    await redisCache.clearFileCache(filename);
+
+    return ctx.json(
+      {
+        message: "Cache cleared successfully for file",
+        filename,
+      },
+      200
+    );
+  } catch (error) {
+    console.error("Error clearing cache:", error);
+    return ctx.json({ message: "Error clearing cache" }, 500);
   }
 });
 

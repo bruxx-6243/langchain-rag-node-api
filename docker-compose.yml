@@ -14,20 +14,25 @@ services:
     env_file:
       - .env
 
+  redis:
+    image: redis:7-alpine
+    container_name: langchain-redis
+    ports:
+      - "6379:6379"
     volumes:
-      - type: bind
-        source: ./uploads
-        target: /app/uploads
-        bind:
-          create_host_path: true
+      - redis_data:/data
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
-  # Cleanup service that runs periodically
-  uploads-cleanup:
-    image: langchain-rag-api
-    volumes:
-      - ./uploads:/app/uploads
-      - ./cleanup-uploads.js:/app/cleanup-uploads.js
-    command: node cleanup-uploads.js
-    restart: "no"
-    profiles:
-      - cleanup
+volumes:
+  uploads_data:
+    driver: local
+  src_data:
+    driver: local
+  redis_data:
+    driver: local

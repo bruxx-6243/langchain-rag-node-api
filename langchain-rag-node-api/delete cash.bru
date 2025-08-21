@@ -1,0 +1,11 @@
+meta {
+  name: delete cash
+  type: http
+  seq: 6
+}
+
+delete {
+  url: {{BASE_URL}}/clear-cache/{{filename}}
+  body: none
+  auth: inherit
+}
