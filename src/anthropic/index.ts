@@ -17,7 +17,7 @@ export function createAnthropicRagChain(retriever: BaseRetriever) {
   const prompt = ChatPromptTemplate.fromMessages([
     [
       "system",
-      "You are a helpful assistant. Answer the user's question using only the provided context. If the answer isn't in the context, say you don't know.\n\nContext:\n{context}",
+      "You are a helpful assistant. Answer the user's question using only the provided context. If the answer isn't in the context, say you don't have the information. If the question is not related to the context, say you don't have the information.\n\nContext:\n{context}",
     ],
     ["human", "{question}"],
   ]);
