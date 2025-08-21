@@ -1,18 +1,24 @@
-version: "3.4"
-
 services:
   langchain-rag-api-dev:
-    image: langchain-rag-api-dev
-
     build:
       context: .
-      dockerfile: ./Dockerfile.dev
-
+      dockerfile: Dockerfile.dev
+    container_name: langchain-rag-api-dev
     ports:
-      - "4000:4000"
-
+      - "4000:3000"
     env_file:
       - .env
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    volumes:
+      - ./uploads:/app/uploads
+      - ./src:/app/src
+    depends_on:
+      - redis
+    restart: unless-stopped
 
   redis:
     image: redis:7-alpine
@@ -30,9 +36,5 @@ services:
       retries: 3
 
 volumes:
-  uploads_data:
-    driver: local
-  src_data:
-    driver: local
   redis_data:
     driver: local
