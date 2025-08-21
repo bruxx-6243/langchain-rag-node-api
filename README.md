@@ -21,7 +21,7 @@ A Node.js API that implements Retrieval-Augmented Generation (RAG) using LangCha
 2. **Configure environment:**
 
    ```bash
-   npm run setup
+   pnpm run setup
    ```
 
    This will create a `.env` file. Update it with your actual API keys.
@@ -47,7 +47,7 @@ pnpm start
 ### Test RAG Chain
 
 ```bash
-npm test
+pnpm test
 ```
 
 ## 📡 API Endpoints
@@ -90,7 +90,7 @@ npm test
 
    ```bash
    git clone https://github.com/bruxx-6243/langchain-rag-node-api.git
-   
+
    cd langchain-rag-node-api
    ```
 
