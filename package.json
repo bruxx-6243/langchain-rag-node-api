@@ -3,7 +3,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "tsc",
+    "build": "tsc --outDir dist && tsc-alias",
     "start": "node dist/index.js",
     "setup": "node setup-env.js",
     "test": "node test-rag.mjs"
