@@ -1,0 +1,27 @@
+version: "3.4"
+
+services:
+  langchain-rag-api-dev:
+    image: langchain-rag-api-dev
+
+    build:
+      context: .
+      dockerfile: ./Dockerfile.dev
+
+    ports:
+      - "4000:4000"
+
+    env_file:
+      - .env
+
+    volumes:
+      - type: bind
+        source: ./uploads
+        target: /app/uploads
+        bind:
+          create_host_path: true
+      - type: bind
+        source: ./src
+        target: /app/src
+        bind:
+          create_host_path: true

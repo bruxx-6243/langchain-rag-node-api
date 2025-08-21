@@ -6,7 +6,8 @@
     "build": "tsc --outDir dist && tsc-alias",
     "start": "node dist/index.js",
     "setup": "node setup-env.js",
-    "test": "node test-rag.mjs"
+    "test": "node test-rag.mjs",
+    "cleanup": "node cleanup-uploads.js"
   },
   "dependencies": {
     "@hono/node-server": "^1.19.0",
