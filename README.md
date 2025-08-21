@@ -15,7 +15,7 @@ A Node.js API that implements Retrieval-Augmented Generation (RAG) using LangCha
 1. **Install dependencies:**
 
    ```bash
-   npm install
+   pnpm install
    ```
 
 2. **Configure environment:**
@@ -34,14 +34,14 @@ A Node.js API that implements Retrieval-Augmented Generation (RAG) using LangCha
 ### Development
 
 ```bash
-npm run dev
+pnpm run dev
 ```
 
 ### Production
 
 ```bash
-npm run build
-npm start
+pnpm run build
+pnpm start
 ```
 
 ### Test RAG Chain
@@ -89,7 +89,9 @@ npm test
 1. **Clone and navigate to the project:**
 
    ```bash
-   cd langchain-rag-api-node
+   git clone https://github.com/bruxx-6243/langchain-rag-node-api.git
+   
+   cd langchain-rag-node-api
    ```
 
 2. **Create environment file:**
@@ -173,7 +175,7 @@ The application automatically manages file storage with a 2GB limit:
 
 ```bash
 # Using npm script
-npm run cleanup
+pnpm run cleanup
 
 # Using Docker Compose
 docker-compose --profile cleanup run --rm uploads-cleanup
