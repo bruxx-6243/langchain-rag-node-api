@@ -2,7 +2,7 @@ import "dotenv/config";
 
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
-import routers from "@/routes/index";
+import routers from "@/routes";
 
 const app = new Hono().basePath("/api");
 

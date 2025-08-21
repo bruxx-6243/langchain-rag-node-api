@@ -81,6 +81,7 @@ app.post("/ask-question", async (ctx) => {
     return ctx.json(
       {
         message: "Question answered successfully",
+        question: body.question,
         answer: result,
       },
       200
