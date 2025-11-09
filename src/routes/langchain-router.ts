@@ -10,16 +10,6 @@ import { RecursiveCharacterTextSplitter } from "langchain/text_splitter";
 
 const langchainRouter = new Hono();
 
-langchainRouter.use("*", async (c, next) => {
-  try {
-    await next();
-  } catch (err) {
-    if (err instanceof HTTPException) return err.getResponse();
-    console.error("[UNHANDLED]", err);
-    throw new HTTPException(500, { message: "Internal server error" });
-  }
-});
-
 const hashQuestion = (q: string) =>
   createHash("sha256").update(q).digest("hex").slice(0, 12);
 

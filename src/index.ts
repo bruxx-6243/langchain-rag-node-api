@@ -3,11 +3,21 @@ import "dotenv/config";
 import routers from "@/routes";
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
+import { HTTPException } from "hono/http-exception";
 import { logger } from "hono/logger";
 
 const app = new Hono().basePath("/api/v1");
 
 app.use(logger());
+app.use("*", async (c, next) => {
+  try {
+    await next();
+  } catch (err) {
+    if (err instanceof HTTPException) return err.getResponse();
+    console.error("[UNHANDLED]", err);
+    throw new HTTPException(500, { message: "Internal server error" });
+  }
+});
 
 app.get("/", async (ctx) => {
   return ctx.json({ message: "Hello from LangChain RAG API!" }, 200);
