@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import type { BlankEnv, BlankSchema } from "hono/types";
-import app from "./app";
+import langchainRouter from "./langchain-router";
 
 const routers: Array<{
   path: string;
@@ -8,7 +8,7 @@ const routers: Array<{
 }> = [
   {
     path: "/",
-    route: app,
+    route: langchainRouter,
   },
 ];
 

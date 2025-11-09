@@ -8,9 +8,9 @@ import { RecursiveCharacterTextSplitter } from "langchain/text_splitter";
 
 import { HTTPException } from "hono/http-exception";
 
-const app = new Hono();
+const langchainRouter = new Hono();
 
-app.post("/upload-file", async (ctx) => {
+langchainRouter.post("/upload-file", async (ctx) => {
   try {
     const formData = await ctx.req.formData();
     const file = formData.get("file");
@@ -37,17 +37,17 @@ app.post("/upload-file", async (ctx) => {
       200
     );
   } catch (error) {
-    console.error("Upload error:", error);
+    if (error instanceof HTTPException) {
+      return error.getResponse();
+    }
+
     throw new HTTPException(500, { message: "Error uploading file" });
   }
 });
 
-app.post("/ask-question", async (ctx) => {
+langchainRouter.post("/ask-question", async (ctx) => {
   try {
-    const body = (await ctx.req.json()) as {
-      filename: string;
-      question: string;
-    };
+    const body = await ctx.req.json();
 
     if (!body.question || !body.filename) {
       throw new HTTPException(400, {
@@ -115,13 +115,15 @@ app.post("/ask-question", async (ctx) => {
       200
     );
   } catch (error) {
-    console.error("Error asking question:", error);
-    // return ctx.json({ message: "Error asking question" }, 500);
+    if (error instanceof HTTPException) {
+      return error.getResponse();
+    }
+
     throw new HTTPException(500, { message: "Error asking question" });
   }
 });
 
-app.get("/cache-stats", async (ctx) => {
+langchainRouter.get("/cache-stats", async (ctx) => {
   try {
     const stats = await redisCache.getStats();
 
@@ -139,12 +141,15 @@ app.get("/cache-stats", async (ctx) => {
       200
     );
   } catch (error) {
-    console.error("Error getting cache stats:", error);
+    if (error instanceof HTTPException) {
+      return error.getResponse();
+    }
+
     throw new HTTPException(500, { message: "Error getting cache statistics" });
   }
 });
 
-app.delete("/clear-cache/:filename", async (ctx) => {
+langchainRouter.delete("/clear-cache/:filename", async (ctx) => {
   try {
     const filename = ctx.req.param("filename");
     await redisCache.clearFileCache(filename);
@@ -161,9 +166,12 @@ app.delete("/clear-cache/:filename", async (ctx) => {
       200
     );
   } catch (error) {
-    console.error("Error clearing cache:", error);
+    if (error instanceof HTTPException) {
+      return error.getResponse();
+    }
+
     throw new HTTPException(500, { message: "Error clearing cache" });
   }
 });
 
-export default app;
+export default langchainRouter;

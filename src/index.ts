@@ -1,10 +1,13 @@
 import "dotenv/config";
 
+import routers from "@/routes";
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
-import routers from "@/routes";
+import { logger } from "hono/logger";
 
 const app = new Hono().basePath("/api");
+
+app.use(logger());
 
 app.get("/", async (ctx) => {
   return ctx.json({ message: "Hello from LangChain RAG API!" }, 200);
