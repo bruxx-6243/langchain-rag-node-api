@@ -1,10 +1,12 @@
-import { Hono } from "hono";
-import { Storage } from "@/lib/storage";
-import { CONFIGS } from "@/constants";
-import { RecursiveCharacterTextSplitter } from "langchain/text_splitter";
-import { BM25Retriever } from "@langchain/community/retrievers/bm25";
 import { createAnthropicRagChain } from "@/anthropic";
+import { CONFIGS } from "@/constants";
 import { redisCache } from "@/lib/redis";
+import { Storage } from "@/lib/storage";
+import { BM25Retriever } from "@langchain/community/retrievers/bm25";
+import { Hono } from "hono";
+import { RecursiveCharacterTextSplitter } from "langchain/text_splitter";
+
+import { HTTPException } from "hono/http-exception";
 
 const app = new Hono();
 
@@ -14,11 +16,11 @@ app.post("/upload-file", async (ctx) => {
     const file = formData.get("file");
 
     if (!file || !(file instanceof File)) {
-      return ctx.json({ message: "No file uploaded" }, 400);
+      throw new HTTPException(400, { message: "No file uploaded" });
     }
 
     if (!file.name.endsWith(".txt")) {
-      return ctx.json({ message: "File must be a .txt file" }, 400);
+      throw new HTTPException(400, { message: "File must be a .txt file" });
     }
 
     const storage = new Storage(CONFIGS.filePath);
@@ -36,7 +38,7 @@ app.post("/upload-file", async (ctx) => {
     );
   } catch (error) {
     console.error("Upload error:", error);
-    return ctx.json({ message: "Error uploading file" }, 500);
+    throw new HTTPException(500, { message: "Error uploading file" });
   }
 });
 
@@ -48,7 +50,9 @@ app.post("/ask-question", async (ctx) => {
     };
 
     if (!body.question || !body.filename) {
-      return ctx.json({ message: "No question or filename provided" }, 400);
+      throw new HTTPException(400, {
+        message: "No question or filename provided",
+      });
     }
 
     const cachedAnswer = await redisCache.get(body.question, body.filename);
@@ -68,6 +72,10 @@ app.post("/ask-question", async (ctx) => {
     const storage = new Storage(CONFIGS.filePath);
 
     const fileContent = await storage._get(body.filename);
+
+    if (!fileContent) {
+      throw new HTTPException(404, { message: "File not found" });
+    }
 
     let fileText: string;
 
@@ -108,13 +116,21 @@ app.post("/ask-question", async (ctx) => {
     );
   } catch (error) {
     console.error("Error asking question:", error);
-    return ctx.json({ message: "Error asking question" }, 500);
+    // return ctx.json({ message: "Error asking question" }, 500);
+    throw new HTTPException(500, { message: "Error asking question" });
   }
 });
 
 app.get("/cache-stats", async (ctx) => {
   try {
     const stats = await redisCache.getStats();
+
+    if (!stats) {
+      throw new HTTPException(500, {
+        message: "Error getting cache statistics",
+      });
+    }
+
     return ctx.json(
       {
         message: "Cache statistics retrieved successfully",
@@ -124,7 +140,7 @@ app.get("/cache-stats", async (ctx) => {
     );
   } catch (error) {
     console.error("Error getting cache stats:", error);
-    return ctx.json({ message: "Error getting cache statistics" }, 500);
+    throw new HTTPException(500, { message: "Error getting cache statistics" });
   }
 });
 
@@ -132,6 +148,10 @@ app.delete("/clear-cache/:filename", async (ctx) => {
   try {
     const filename = ctx.req.param("filename");
     await redisCache.clearFileCache(filename);
+
+    if (!filename) {
+      throw new HTTPException(400, { message: "No filename provided" });
+    }
 
     return ctx.json(
       {
@@ -142,7 +162,7 @@ app.delete("/clear-cache/:filename", async (ctx) => {
     );
   } catch (error) {
     console.error("Error clearing cache:", error);
-    return ctx.json({ message: "Error clearing cache" }, 500);
+    throw new HTTPException(500, { message: "Error clearing cache" });
   }
 });
 
