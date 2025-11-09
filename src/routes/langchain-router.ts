@@ -3,175 +3,137 @@ import { CONFIGS } from "@/constants";
 import { redisCache } from "@/lib/redis";
 import { Storage } from "@/lib/storage";
 import { BM25Retriever } from "@langchain/community/retrievers/bm25";
+import { createHash } from "crypto";
 import { Hono } from "hono";
-import { RecursiveCharacterTextSplitter } from "langchain/text_splitter";
-
 import { HTTPException } from "hono/http-exception";
+import { RecursiveCharacterTextSplitter } from "langchain/text_splitter";
 
 const langchainRouter = new Hono();
 
-langchainRouter.post("/upload-file", async (ctx) => {
+langchainRouter.use("*", async (c, next) => {
   try {
-    const formData = await ctx.req.formData();
-    const file = formData.get("file");
-
-    if (!file || !(file instanceof File)) {
-      throw new HTTPException(400, { message: "No file uploaded" });
-    }
-
-    if (!file.name.endsWith(".txt")) {
-      throw new HTTPException(400, { message: "File must be a .txt file" });
-    }
-
-    const storage = new Storage(CONFIGS.filePath);
-
-    const { filename } = await storage._store(file);
-
-    await redisCache.clearFileCache(filename);
-
-    return ctx.json(
-      {
-        message: "File uploaded successfully",
-        filename: filename,
-      },
-      200
-    );
-  } catch (error) {
-    if (error instanceof HTTPException) {
-      return error.getResponse();
-    }
-
-    throw new HTTPException(500, { message: "Error uploading file" });
+    await next();
+  } catch (err) {
+    if (err instanceof HTTPException) return err.getResponse();
+    console.error("[UNHANDLED]", err);
+    throw new HTTPException(500, { message: "Internal server error" });
   }
 });
 
-langchainRouter.post("/ask-question", async (ctx) => {
+const hashQuestion = (q: string) =>
+  createHash("sha256").update(q).digest("hex").slice(0, 12);
+
+const answerCacheKey = (filename: string, question: string) =>
+  `rag:${filename}:${hashQuestion(question)}`;
+
+const chunkCacheKey = (filename: string) => `chunks:${filename}`;
+
+const toString = (content: Buffer | string): string => {
+  if (Buffer.isBuffer(content)) return content.toString("utf-8");
+  return typeof content === "string" ? content : String(content);
+};
+
+langchainRouter.post("/upload-file", async (c) => {
+  const form = await c.req.formData();
+  const file = form.get("file");
+
+  if (!file || !(file instanceof File)) {
+    throw new HTTPException(400, { message: "No file uploaded" });
+  }
+
+  if (file.type !== "text/plain") {
+    throw new HTTPException(400, {
+      message: "Only plain-text (.txt) files allowed",
+    });
+  }
+  if (file.size > CONFIGS.maxFileSize) {
+    throw new HTTPException(400, { message: "File too large (max 5 MB)" });
+  }
+
+  const sample = await file.slice(0, 1024).arrayBuffer();
   try {
-    const body = await ctx.req.json();
+    new TextDecoder("utf-8", { fatal: true }).decode(sample);
+  } catch (error) {
+    throw new HTTPException(400, {
+      message: "File contains invalid UTF-8",
+      cause: error,
+    });
+  }
 
-    if (!body.question || !body.filename) {
-      throw new HTTPException(400, {
-        message: "No question or filename provided",
-      });
-    }
+  const storage = new Storage(CONFIGS.filePath);
+  const { filename } = await storage.save(file);
+  await redisCache.clearFileCache(filename);
 
-    const cachedAnswer = await redisCache.get(body.question, body.filename);
+  return c.json({ message: "File uploaded successfully", filename }, 200);
+});
 
-    if (cachedAnswer) {
-      return ctx.json(
-        {
-          message: "Question answered from cache",
-          question: body.question,
-          answer: cachedAnswer,
-          cached: true,
-        },
-        200
-      );
-    }
+langchainRouter.post("/ask-question", async (c) => {
+  const { question, filename } = await c.req.json();
 
+  if (!question || !filename) {
+    throw new HTTPException(400, { message: "Missing question or filename" });
+  }
+
+  const answerKey = answerCacheKey(filename, question);
+
+  const cached = await redisCache.get(answerKey, filename);
+
+  if (cached) {
+    return c.json(
+      { message: "From cache", question, answer: cached, cached: true },
+      200
+    );
+  }
+
+  const chunksKey = chunkCacheKey(filename);
+  let docsJson = await redisCache.get(chunksKey, filename);
+  let docs: any[];
+
+  if (!docsJson) {
     const storage = new Storage(CONFIGS.filePath);
+    const raw = await storage.load(filename);
 
-    const fileContent = await storage._get(body.filename);
+    if (!raw) throw new HTTPException(404, { message: "File not found" });
 
-    if (!fileContent) {
-      throw new HTTPException(404, { message: "File not found" });
-    }
-
-    let fileText: string;
-
-    if (Buffer.isBuffer(fileContent)) {
-      fileText = fileContent.toString("utf-8");
-    } else if (typeof fileContent === "string") {
-      fileText = fileContent;
-    } else {
-      fileText = String(fileContent);
-    }
+    const text = toString(raw);
 
     const splitter = new RecursiveCharacterTextSplitter({
-      chunkSize: 500,
+      chunkSize: CONFIGS.chunkSize,
+      chunkOverlap: CONFIGS.chunkOverlap,
       separators: ["\n\n", "\n", ".", " ", ""],
-      chunkOverlap: 150,
     });
 
-    const output = await splitter.createDocuments([fileText]);
+    docs = await splitter.createDocuments([text]);
 
-    const retriever = BM25Retriever.fromDocuments(output, {
-      k: 8,
-    });
-
-    const ragChain = createAnthropicRagChain(retriever);
-
-    const result = await ragChain.invoke(body.question);
-
-    await redisCache.set(body.question, body.filename, result);
-
-    return ctx.json(
-      {
-        message: "Question answered successfully",
-        question: body.question,
-        answer: result,
-        cached: false,
-      },
-      200
-    );
-  } catch (error) {
-    if (error instanceof HTTPException) {
-      return error.getResponse();
-    }
-
-    throw new HTTPException(500, { message: "Error asking question" });
+    await redisCache.set(chunksKey, filename, JSON.stringify(docs));
+  } else {
+    docs = JSON.parse(docsJson);
   }
+
+  const retriever = BM25Retriever.fromDocuments(docs, { k: CONFIGS.bm25K });
+  const chain = createAnthropicRagChain(retriever);
+  const answer = await chain.invoke(question);
+
+  await redisCache.set(answerKey, filename, answer);
+
+  return c.json({ message: "Generated", question, answer, cached: false }, 200);
 });
 
-langchainRouter.get("/cache-stats", async (ctx) => {
-  try {
-    const stats = await redisCache.getStats();
-
-    if (!stats) {
-      throw new HTTPException(500, {
-        message: "Error getting cache statistics",
-      });
-    }
-
-    return ctx.json(
-      {
-        message: "Cache statistics retrieved successfully",
-        stats,
-      },
-      200
-    );
-  } catch (error) {
-    if (error instanceof HTTPException) {
-      return error.getResponse();
-    }
-
-    throw new HTTPException(500, { message: "Error getting cache statistics" });
+langchainRouter.get("/cache-stats", async (c) => {
+  const stats = await redisCache.getStats();
+  if (!stats) {
+    throw new HTTPException(500, { message: "Failed to retrieve cache stats" });
   }
+  return c.json({ message: "Cache stats", stats }, 200);
 });
 
-langchainRouter.delete("/clear-cache/:filename", async (ctx) => {
-  try {
-    const filename = ctx.req.param("filename");
-    await redisCache.clearFileCache(filename);
-
-    if (!filename) {
-      throw new HTTPException(400, { message: "No filename provided" });
-    }
-
-    return ctx.json(
-      {
-        message: "Cache cleared successfully for file",
-        filename,
-      },
-      200
-    );
-  } catch (error) {
-    if (error instanceof HTTPException) {
-      return error.getResponse();
-    }
-
-    throw new HTTPException(500, { message: "Error clearing cache" });
+langchainRouter.delete("/clear-cache/:filename", async (c) => {
+  const filename = c.req.param("filename");
+  if (!filename) {
+    throw new HTTPException(400, { message: "Filename required" });
   }
+  await redisCache.clearFileCache(filename);
+  return c.json({ message: "Cache cleared", filename }, 200);
 });
 
 export default langchainRouter;
