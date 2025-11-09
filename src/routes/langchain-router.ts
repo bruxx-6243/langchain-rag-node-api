@@ -119,17 +119,21 @@ langchainRouter.post(paths.ASK_QUESTION, async (c) => {
 
 langchainRouter.get(paths.CACHE_STATS, async (c) => {
   const stats = await redisCache.getStats();
+
   if (!stats) {
     throw new HTTPException(500, { message: "Failed to retrieve cache stats" });
   }
+
   return c.json({ message: "Cache stats", stats }, 200);
 });
 
 langchainRouter.delete(paths.CLEAR_CACHE, async (c) => {
   const filename = c.req.param("filename");
+
   if (!filename) {
     throw new HTTPException(400, { message: "Filename required" });
   }
+
   await redisCache.clearFileCache(filename);
   return c.json({ message: "Cache cleared", filename }, 200);
 });
