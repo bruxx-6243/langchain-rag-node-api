@@ -10,6 +10,13 @@ import { RecursiveCharacterTextSplitter } from "langchain/text_splitter";
 
 const langchainRouter = new Hono();
 
+const paths = {
+  UPLOAD_FILE: "/upload-file",
+  ASK_QUESTION: "/ask-question",
+  CACHE_STATS: "/cache-stats",
+  CLEAR_CACHE: "/clear-cache/:filename",
+};
+
 const hashQuestion = (q: string) =>
   createHash("sha256").update(q).digest("hex").slice(0, 12);
 
@@ -23,7 +30,7 @@ const toString = (content: Buffer | string): string => {
   return typeof content === "string" ? content : String(content);
 };
 
-langchainRouter.post("/upload-file", async (c) => {
+langchainRouter.post(paths.UPLOAD_FILE, async (c) => {
   const form = await c.req.formData();
   const file = form.get("file");
 
@@ -36,6 +43,7 @@ langchainRouter.post("/upload-file", async (c) => {
       message: "Only plain-text (.txt) files allowed",
     });
   }
+
   if (file.size > CONFIGS.maxFileSize) {
     throw new HTTPException(400, { message: "File too large (max 5 MB)" });
   }
@@ -57,7 +65,7 @@ langchainRouter.post("/upload-file", async (c) => {
   return c.json({ message: "File uploaded successfully", filename }, 200);
 });
 
-langchainRouter.post("/ask-question", async (c) => {
+langchainRouter.post(paths.ASK_QUESTION, async (c) => {
   const { question, filename } = await c.req.json();
 
   if (!question || !filename) {
@@ -109,7 +117,7 @@ langchainRouter.post("/ask-question", async (c) => {
   return c.json({ message: "Generated", question, answer, cached: false }, 200);
 });
 
-langchainRouter.get("/cache-stats", async (c) => {
+langchainRouter.get(paths.CACHE_STATS, async (c) => {
   const stats = await redisCache.getStats();
   if (!stats) {
     throw new HTTPException(500, { message: "Failed to retrieve cache stats" });
@@ -117,7 +125,7 @@ langchainRouter.get("/cache-stats", async (c) => {
   return c.json({ message: "Cache stats", stats }, 200);
 });
 
-langchainRouter.delete("/clear-cache/:filename", async (c) => {
+langchainRouter.delete(paths.CLEAR_CACHE, async (c) => {
   const filename = c.req.param("filename");
   if (!filename) {
     throw new HTTPException(400, { message: "Filename required" });
