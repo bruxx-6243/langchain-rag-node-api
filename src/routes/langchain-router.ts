@@ -2,8 +2,12 @@ import { createAnthropicRagChain } from "@/anthropic";
 import { CONFIGS } from "@/constants";
 import { redisCache } from "@/lib/redis";
 import { Storage } from "@/lib/storage";
+import {
+  answerCacheKey,
+  chunkCacheKey,
+  convertBufferToString,
+} from "@/lib/utils";
 import { BM25Retriever } from "@langchain/community/retrievers/bm25";
-import { createHash } from "crypto";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { RecursiveCharacterTextSplitter } from "langchain/text_splitter";
@@ -15,19 +19,6 @@ const paths = {
   ASK_QUESTION: "/ask-question",
   CACHE_STATS: "/cache-stats",
   CLEAR_CACHE: "/clear-cache/:filename",
-};
-
-const hashQuestion = (q: string) =>
-  createHash("sha256").update(q).digest("hex").slice(0, 12);
-
-const answerCacheKey = (filename: string, question: string) =>
-  `rag:${filename}:${hashQuestion(question)}`;
-
-const chunkCacheKey = (filename: string) => `chunks:${filename}`;
-
-const toString = (content: Buffer | string): string => {
-  if (Buffer.isBuffer(content)) return content.toString("utf-8");
-  return typeof content === "string" ? content : String(content);
 };
 
 langchainRouter.post(paths.UPLOAD_FILE, async (c) => {
@@ -87,13 +78,15 @@ langchainRouter.post(paths.ASK_QUESTION, async (c) => {
   let docsJson = await redisCache.get(chunksKey, filename);
   let docs: any[];
 
-  if (!docsJson) {
+  if (docsJson) {
+    docs = JSON.parse(docsJson);
+  } else {
     const storage = new Storage(CONFIGS.filePath);
     const raw = await storage.load(filename);
 
     if (!raw) throw new HTTPException(404, { message: "File not found" });
 
-    const text = toString(raw);
+    const text = convertBufferToString(raw);
 
     const splitter = new RecursiveCharacterTextSplitter({
       chunkSize: CONFIGS.chunkSize,
@@ -104,8 +97,6 @@ langchainRouter.post(paths.ASK_QUESTION, async (c) => {
     docs = await splitter.createDocuments([text]);
 
     await redisCache.set(chunksKey, filename, JSON.stringify(docs));
-  } else {
-    docs = JSON.parse(docsJson);
   }
 
   const retriever = BM25Retriever.fromDocuments(docs, { k: CONFIGS.bm25K });
