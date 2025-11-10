@@ -1,5 +1,3 @@
-version: "3.4"
-
 services:
   langchain-rag-api:
     image: langchain-rag-api
@@ -8,8 +6,12 @@ services:
       context: .
       dockerfile: ./Dockerfile
 
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+
     ports:
-      - "4000:4000"
+      - "4000:3000"
 
     env_file:
       - .env
