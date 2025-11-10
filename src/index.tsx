@@ -1,6 +1,7 @@
 import "dotenv/config";
 
 import routers from "@/routes";
+import { IndexPage } from "@/templates";
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
@@ -19,13 +20,13 @@ app.use("*", async (c, next) => {
   }
 });
 
-app.get("/", async (ctx) => {
-  return ctx.json({ message: "Hello from LangChain RAG API!" }, 200);
+app.get("/", (c) => {
+  return c.html(<IndexPage />);
 });
 
-routers.forEach((router) => {
+for (const router of routers) {
   app.route(router.path, router.route);
-});
+}
 
 serve(
   {
