@@ -23,7 +23,7 @@ export const IndexPage: FC = () => {
           fontFamily: "sans-serif",
         }}
       >
-        LangChain Text RAG API 🐦
+        LangChain Text RAG API 🚀🐧
       </h1>
       <p style={{ textAlign: "center", fontFamily: "sans-serif" }}>
         This is a simple LangChain text RAG API that allows you to upload a text
