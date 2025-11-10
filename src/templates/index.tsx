@@ -1,4 +1,4 @@
-import type { FC } from "hono/jsx";
+import { type FC } from "hono/jsx";
 
 const Layout: FC = ({ children }) => {
   return (
@@ -16,7 +16,19 @@ const Layout: FC = ({ children }) => {
 export const IndexPage: FC = () => {
   return (
     <Layout>
-      <h1>LangChain RAG API</h1>
+      <h1
+        style={{
+          marginTop: "20px",
+          textAlign: "center",
+          fontFamily: "sans-serif",
+        }}
+      >
+        LangChain Text RAG API 🐦
+      </h1>
+      <p style={{ textAlign: "center", fontFamily: "sans-serif" }}>
+        This is a simple LangChain text RAG API that allows you to upload a text
+        file and ask questions about it.
+      </p>
     </Layout>
   );
 };
