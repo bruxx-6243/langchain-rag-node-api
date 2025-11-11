@@ -9,7 +9,12 @@ import { logger } from "hono/logger";
 
 const app = new Hono().basePath("/api/v1");
 
-app.use(logger());
+app.use(
+  logger((str, ...rest) => {
+    console.log(`[${new Date().toISOString()}] ${str}`, ...rest);
+  })
+);
+
 app.use("*", async (c, next) => {
   try {
     await next();
