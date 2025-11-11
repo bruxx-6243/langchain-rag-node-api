@@ -2,7 +2,11 @@ import { promises as fs } from "fs";
 import path from "path";
 
 export class Storage {
-  constructor(private readonly storagePath: string) {}
+  private readonly storagePath: string;
+
+  constructor(storagePath: string) {
+    this.storagePath = storagePath;
+  }
 
   async save(
     file: File
