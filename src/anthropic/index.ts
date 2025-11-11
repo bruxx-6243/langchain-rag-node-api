@@ -8,31 +8,48 @@ import {
   RunnableSequence,
 } from "@langchain/core/runnables";
 
-export function createAnthropicRagChain(retriever: BaseRetriever) {
-  const model = new ChatAnthropic({
-    model: "claude-3-5-sonnet-20240620",
-    apiKey: process.env.ANTHROPIC_API_KEY,
-  });
+class AnthropicRagChain {
+  private readonly model: ChatAnthropic;
+  private readonly chain: RunnableSequence;
 
-  const prompt = ChatPromptTemplate.fromMessages([
+  constructor(retriever: BaseRetriever) {
+    this.model = new ChatAnthropic({
+      model: "claude-3-5-sonnet-20240620",
+      apiKey: process.env.ANTHROPIC_API_KEY,
+    });
+
+    const formatDocs = RunnableLambda.from(async (docs: any[]) =>
+      docs.map((d) => d.pageContent).join("\n\n")
+    );
+
+    this.chain = RunnableSequence.from([
+      {
+        context: retriever.pipe(formatDocs),
+        question: new RunnablePassthrough(),
+      },
+      this.prompt,
+      this.model,
+      new StringOutputParser(),
+    ]);
+  }
+
+  async invoke(question: string): Promise<string> {
+    return await this.chain.invoke(question);
+  }
+
+  async stream(question: string) {
+    return await this.chain.stream(question);
+  }
+
+  private readonly prompt = ChatPromptTemplate.fromMessages([
     [
       "system",
       "You are a helpful assistant. Answer the user's question using only the provided context. If the answer isn't in the context, say you don't have the information. If the question is not related to the context, say you don't have the information.\n\nContext:\n{context}",
     ],
     ["human", "{question}"],
   ]);
+}
 
-  const formatDocs = RunnableLambda.from(async (docs: any[]) =>
-    docs.map((d) => d.pageContent).join("\n\n")
-  );
-
-  return RunnableSequence.from([
-    {
-      context: retriever.pipe(formatDocs),
-      question: new RunnablePassthrough(),
-    },
-    prompt,
-    model,
-    new StringOutputParser(),
-  ]);
+export function createAnthropicRagChain(retriever: BaseRetriever) {
+  return new AnthropicRagChain(retriever);
 }
