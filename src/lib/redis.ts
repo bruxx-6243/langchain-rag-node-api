@@ -1,22 +1,22 @@
-import Redis from "ioredis";
 import { CONFIGS } from "@/constants";
+import Redis from "ioredis";
 
 export class RedisCache {
-  private redis: Redis;
-  private readonly TTL = CONFIGS.redis.ttl;
+  private readonly redisClient: Redis;
+  private readonly ttl = CONFIGS.redis.ttl;
 
   constructor() {
-    this.redis = new Redis({
+    this.redisClient = new Redis({
       host: CONFIGS.redis.host,
       port: CONFIGS.redis.port,
       password: CONFIGS.redis.password,
     });
 
-    this.redis.on("error", (error) => {
+    this.redisClient.on("error", (error) => {
       console.error("Redis connection error:", error);
     });
 
-    this.redis.on("connect", () => {
+    this.redisClient.on("connect", () => {
       console.log("Connected to Redis");
     });
   }
@@ -46,7 +46,7 @@ export class RedisCache {
         timestamp: Date.now(),
       };
 
-      await this.redis.setex(key, this.TTL, JSON.stringify(cacheData));
+      await this.redisClient.setex(key, this.ttl, JSON.stringify(cacheData));
       console.log(
         `Cached answer for question: ${question.substring(0, 50)}...`
       );
@@ -58,7 +58,7 @@ export class RedisCache {
   async get(question: string, filename: string): Promise<string | null> {
     try {
       const key = this.generateKey(question, filename);
-      const cached = await this.redis.get(key);
+      const cached = await this.redisClient.get(key);
 
       if (cached) {
         const cacheData = JSON.parse(cached);
@@ -76,7 +76,7 @@ export class RedisCache {
   async exists(question: string, filename: string): Promise<boolean> {
     try {
       const key = this.generateKey(question, filename);
-      const exists = await this.redis.exists(key);
+      const exists = await this.redisClient.exists(key);
       return exists === 1;
     } catch (error) {
       console.error("Redis exists error:", error);
@@ -84,11 +84,10 @@ export class RedisCache {
     }
   }
 
-
   async delete(question: string, filename: string): Promise<void> {
     try {
       const key = this.generateKey(question, filename);
-      await this.redis.del(key);
+      await this.redisClient.del(key);
       console.log(
         `Deleted cache for question: ${question.substring(0, 50)}...`
       );
@@ -100,10 +99,10 @@ export class RedisCache {
   async clearFileCache(filename: string): Promise<void> {
     try {
       const pattern = `qa:${filename}:*`;
-      const keys = await this.redis.keys(pattern);
+      const keys = await this.redisClient.keys(pattern);
 
       if (keys.length > 0) {
-        await this.redis.del(...keys);
+        await this.redisClient.del(...keys);
         console.log(
           `Cleared ${keys.length} cached items for file: ${filename}`
         );
@@ -115,8 +114,8 @@ export class RedisCache {
 
   async getStats(): Promise<{ totalKeys: number; memoryUsage: string }> {
     try {
-      const keys = await this.redis.keys("qa:*");
-      const info = await this.redis.info("memory");
+      const keys = await this.redisClient.keys("qa:*");
+      const info = await this.redisClient.info("memory");
 
       const memoryLine = info
         .split("\n")
@@ -134,7 +133,7 @@ export class RedisCache {
   }
 
   async close(): Promise<void> {
-    await this.redis.quit();
+    await this.redisClient.quit();
   }
 }
 
