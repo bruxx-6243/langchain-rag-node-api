@@ -98,6 +98,15 @@ export class QdrantService {
 
   async deleteByFilename(filename: string): Promise<void> {
     try {
+      // Check if collection exists first
+      const collectionInfo = await this.getCollectionInfo();
+      if (!collectionInfo) {
+        console.log(
+          `Collection ${this.collectionName} does not exist, nothing to delete for filename: ${filename}`
+        );
+        return;
+      }
+
       const filter = {
         must: [
           {

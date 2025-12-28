@@ -51,6 +51,8 @@ langchainRouter.post(paths.UPLOAD_FILE, async (c) => {
   const storage = new Storage(CONFIGS.filePath);
   const { filename } = await storage.save(file);
 
+  await qdrantService.ensureCollection(embeddingService.getDimensions());
+
   await redisCache.clearFileCache(filename);
   await qdrantService.deleteByFilename(filename);
 
@@ -158,6 +160,7 @@ langchainRouter.delete(paths.CLEAR_CACHE, async (c) => {
     throw new HTTPException(400, { message: "Filename required" });
   }
 
+  await qdrantService.ensureCollection(embeddingService.getDimensions());
   await redisCache.clearFileCache(filename);
   await qdrantService.deleteByFilename(filename);
   return c.json({ message: "Cache cleared", filename }, 200);
