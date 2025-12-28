@@ -16,8 +16,9 @@ export const CONFIGS = {
     collectionName: process.env.QDRANT_COLLECTION_NAME || "documents",
   },
   openai: {
-    apiKey: process.env.OPENAI_API_KEY,
-    embeddingModel: process.env.OPENAI_EMBEDDING_MODEL || "text-embedding-3-small",
+    apiKey: process.env.OPEN_AI_API_KEY,
+    embeddingModel:
+      process.env.OPENAI_EMBEDDING_MODEL || "text-embedding-3-small",
     embeddingDimensions: 1536,
   },
   hybridSearch: {

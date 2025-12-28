@@ -139,6 +139,46 @@ export class QdrantService {
       return false;
     }
   }
+
+  async getAllPoints(limit = 10000) {
+    try {
+      const result = await this.client.scroll(this.collectionName, {
+        limit,
+        with_payload: true,
+        with_vector: false, // Set to true if you need vectors
+      });
+      return result.points;
+    } catch (error) {
+      console.error("Error getting all points:", error);
+      throw error;
+    }
+  }
+
+  async getPointsByFilename(filename: string, limit = 1000) {
+    try {
+      const filter = {
+        must: [
+          {
+            key: "filename",
+            match: {
+              value: filename,
+            },
+          },
+        ],
+      } as Record<string, unknown>;
+
+      const result = await this.client.scroll(this.collectionName, {
+        limit,
+        filter,
+        with_payload: true,
+        with_vector: false,
+      });
+      return result.points;
+    } catch (error) {
+      console.error("Error getting points by filename:", error);
+      throw error;
+    }
+  }
 }
 
 export const qdrantService = new QdrantService();

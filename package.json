@@ -7,7 +7,9 @@
     "start": "node dist/index.js",
     "setup": "node setup-env.js",
     "test": "node test-rag.mjs",
-    "cleanup": "node cleanup-uploads.js"
+    "cleanup": "node cleanup-uploads.js",
+    "visualize": "tsx visualize-qdrant.ts",
+    "test-upload": "tsx test-upload.ts"
   },
   "dependencies": {
     "@hono/node-server": "^1.19.0",
