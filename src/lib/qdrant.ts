@@ -12,7 +12,6 @@ export class QdrantService {
   private readonly collectionName: string;
 
   constructor() {
-    // Qdrant client expects URL format: http://host:port
     const url = `http://${CONFIGS.qdrant.host}:${CONFIGS.qdrant.port}`;
     this.client = new QdrantClient({ url });
     this.collectionName = CONFIGS.qdrant.collectionName;
@@ -50,18 +49,12 @@ export class QdrantService {
     }>
   ): Promise<void> {
     try {
-      // Qdrant supports both string and numeric IDs
-      // Convert string IDs to numeric if they're hex strings, or keep as string
       const qdrantPoints = points.map((p) => {
-        // Try to convert hex string to number for better performance
-        // If conversion fails, use string ID
         let pointId: string | number = p.id;
         if (typeof p.id === "string" && /^[0-9a-f]+$/i.test(p.id)) {
-          // Convert hex string to number if it's a valid hex string
           try {
             pointId = Number.parseInt(p.id, 16);
           } catch {
-            // Keep as string if conversion fails
             pointId = p.id;
           }
         }
@@ -105,7 +98,6 @@ export class QdrantService {
 
   async deleteByFilename(filename: string): Promise<void> {
     try {
-      // Qdrant filter syntax: use proper match condition
       const filter = {
         must: [
           {

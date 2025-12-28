@@ -31,32 +31,24 @@ export class HybridRetriever extends BaseRetriever {
     query: string,
     runManager?: CallbackManagerForRetrieverRun
   ): Promise<Document[]> {
-    // Get BM25 results
     const bm25Results = await this.getBM25Results(query);
 
-    // Get vector search results
     const vectorResults = await this.getVectorResults(query);
 
-    // Combine and deduplicate
     const combined = this.combineResults(bm25Results, vectorResults);
 
-    // Sort by score (descending)
     combined.sort((a, b) => b.score - a.score);
 
-    // Return top K documents
     return combined.slice(0, this.topK).map((item) => item.document);
   }
 
   private async getBM25Results(query: string): Promise<ScoredDocument[]> {
     try {
-      // Use LangChain's BM25Retriever (using invoke instead of deprecated getRelevantDocuments)
       const docs = await this.bm25Retriever.invoke(query);
 
-      // BM25Retriever doesn't return scores directly, so we'll assign a default score
-      // In a real implementation, you might want to extract scores if available
       return docs.map((doc) => ({
         document: doc,
-        score: 1, // Default score, will be normalized later
+        score: 1,
       }));
     } catch (error) {
       console.error("Error in BM25 search:", error);
@@ -66,11 +58,8 @@ export class HybridRetriever extends BaseRetriever {
 
   private async getVectorResults(query: string): Promise<ScoredDocument[]> {
     try {
-      // Generate query embedding
       const queryVector = await embeddingService.embedQuery(query);
 
-      // Search Qdrant with filename filter
-      // Qdrant filter syntax: must array with match condition
       const filter = {
         must: [
           {
@@ -88,7 +77,6 @@ export class HybridRetriever extends BaseRetriever {
         filter
       );
 
-      // Convert Qdrant results to Documents
       return results.map((point) => {
         const payload = point.payload as Record<string, unknown>;
         return {
@@ -116,7 +104,6 @@ export class HybridRetriever extends BaseRetriever {
     const bm25Weight = CONFIGS.hybridSearch.bm25Weight;
     const vectorWeight = CONFIGS.hybridSearch.vectorWeight;
 
-    // Normalize scores
     const normalizeScores = (results: ScoredDocument[]): ScoredDocument[] => {
       if (results.length === 0) return [];
       const maxScore = Math.max(...results.map((r) => r.score));
@@ -130,10 +117,8 @@ export class HybridRetriever extends BaseRetriever {
     const normalizedBM25 = normalizeScores(bm25Results);
     const normalizedVector = normalizeScores(vectorResults);
 
-    // Create a map to combine results by content
     const docMap = new Map<string, ScoredDocument>();
 
-    // Add BM25 results
     for (const item of normalizedBM25) {
       const key = item.document.pageContent;
       docMap.set(key, {
@@ -142,7 +127,6 @@ export class HybridRetriever extends BaseRetriever {
       });
     }
 
-    // Add/combine vector results
     for (const item of normalizedVector) {
       const key = item.document.pageContent;
       const existing = docMap.get(key);
