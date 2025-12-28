@@ -154,7 +154,7 @@ export class QdrantService {
       const result = await this.client.scroll(this.collectionName, {
         limit,
         with_payload: true,
-        with_vector: false, // Set to true if you need vectors
+        with_vector: false,
       });
       return result.points;
     } catch (error) {
