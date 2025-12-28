@@ -7,13 +7,17 @@
     "start": "node dist/index.js",
     "setup": "node setup-env.js",
     "test": "node test-rag.mjs",
-    "cleanup": "node cleanup-uploads.js"
+    "cleanup": "node cleanup-uploads.js",
+    "visualize": "tsx visualize-qdrant.ts",
+    "test-upload": "tsx test-upload.ts"
   },
   "dependencies": {
     "@hono/node-server": "^1.19.0",
     "@langchain/anthropic": "^0.3.26",
     "@langchain/community": "^0.3.53",
     "@langchain/core": "^0.3.72",
+    "@langchain/openai": "^0.3.15",
+    "@qdrant/js-client-rest": "^1.9.0",
     "dotenv": "^17.2.1",
     "hono": "^4.9.2",
     "ioredis": "^5.3.2",

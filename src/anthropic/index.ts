@@ -1,3 +1,4 @@
+import { CONFIGS } from "@/constants";
 import { ChatAnthropic } from "@langchain/anthropic";
 import { StringOutputParser } from "@langchain/core/output_parsers";
 import { ChatPromptTemplate } from "@langchain/core/prompts";
@@ -14,8 +15,8 @@ class AnthropicRagChain {
 
   constructor(retriever: BaseRetriever) {
     this.model = new ChatAnthropic({
-      model: "claude-3-5-sonnet-20240620",
-      apiKey: process.env.ANTHROPIC_API_KEY,
+      model: CONFIGS.anthropic.model,
+      apiKey: CONFIGS.anthropic.apiKey,
     });
 
     const formatDocs = RunnableLambda.from(async (docs: any[]) =>
