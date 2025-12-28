@@ -6,6 +6,8 @@ import { BM25Retriever } from "@langchain/community/retrievers/bm25";
 import { embeddingService } from "@/lib/embeddings";
 import { qdrantService } from "@/lib/qdrant";
 
+export type RetrieverMode = "semantic" | "keyword" | "hybrid";
+
 interface ScoredDocument {
   document: Document;
   score: number;
@@ -17,34 +19,69 @@ export class HybridRetriever extends BaseRetriever {
   private readonly bm25Retriever: BM25Retriever;
   private readonly filename: string;
   private readonly topK: number;
+  private readonly mode: RetrieverMode;
 
-  constructor(docs: Document[], filename: string, topK?: number) {
+  private sanitizeQueryForBM25(query: string): string {
+    // Escape regex special characters that can cause invalid regex patterns
+    // Using replace() with regex /g flag instead of replaceAll() for regex pattern matching
+    return query.replace(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
+  }
+
+  constructor(
+    docs: Document[],
+    filename: string,
+    topK?: number,
+    mode: RetrieverMode = "hybrid"
+  ) {
     super();
     this.bm25Retriever = BM25Retriever.fromDocuments(docs, {
       k: topK || CONFIGS.hybridSearch.topK,
     });
     this.filename = filename;
     this.topK = topK || CONFIGS.hybridSearch.topK;
+    this.mode = mode;
   }
 
   async _getRelevantDocuments(
     query: string,
     runManager?: CallbackManagerForRetrieverRun
   ): Promise<Document[]> {
-    const bm25Results = await this.getBM25Results(query);
+    let semanticResults: ScoredDocument[] = [];
+    let keywordResults: ScoredDocument[] = [];
 
-    const vectorResults = await this.getVectorResults(query);
+    if (this.mode === "semantic" || this.mode === "hybrid") {
+      semanticResults = await this.getVectorResults(query);
+    }
 
-    const combined = this.combineResults(bm25Results, vectorResults);
+    if (this.mode === "keyword" || this.mode === "hybrid") {
+      keywordResults = await this.getBM25Results(query);
+    }
 
-    combined.sort((a, b) => b.score - a.score);
+    if (this.mode === "semantic") {
+      const sortedSemantic = [...semanticResults].sort(
+        (a, b) => b.score - a.score
+      );
+      return sortedSemantic.slice(0, this.topK).map((item) => item.document);
+    }
 
-    return combined.slice(0, this.topK).map((item) => item.document);
+    if (this.mode === "keyword") {
+      const sortedKeyword = [...keywordResults].sort(
+        (a, b) => b.score - a.score
+      );
+      return sortedKeyword.slice(0, this.topK).map((item) => item.document);
+    }
+
+    const combined = this.combineResults(keywordResults, semanticResults);
+    const sortedCombined = [...combined].sort((a, b) => b.score - a.score);
+
+    return sortedCombined.slice(0, this.topK).map((item) => item.document);
   }
 
   private async getBM25Results(query: string): Promise<ScoredDocument[]> {
     try {
-      const docs = await this.bm25Retriever.invoke(query);
+      // Sanitize the query to escape regex special characters that can cause BM25 to fail
+      const sanitizedQuery = this.sanitizeQueryForBM25(query);
+      const docs = await this.bm25Retriever.invoke(sanitizedQuery);
 
       return docs.map((doc) => ({
         document: doc,
