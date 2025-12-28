@@ -9,12 +9,18 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=3000
+      - QDRANT_HOST=qdrant
+      - QDRANT_PORT=6333
 
     ports:
       - "4000:3000"
 
     env_file:
       - .env
+
+    depends_on:
+      - redis
+      - qdrant
 
   redis:
     image: redis:7-alpine
@@ -31,10 +37,27 @@ services:
       timeout: 10s
       retries: 3
 
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: langchain-qdrant
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:6333/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
 volumes:
   uploads_data:
     driver: local
   src_data:
     driver: local
   redis_data:
+    driver: local
+  qdrant_data:
     driver: local

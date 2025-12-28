@@ -4,13 +4,17 @@ import { redisCache } from "@/lib/redis";
 import { Storage } from "@/lib/storage";
 import {
   answerCacheKey,
-  chunkCacheKey,
   convertBufferToString,
 } from "@/lib/utils";
+import { embeddingService } from "@/lib/embeddings";
+import { qdrantService } from "@/lib/qdrant";
+import { HybridRetriever } from "@/lib/hybrid-retriever";
 import { BM25Retriever } from "@langchain/community/retrievers/bm25";
+import { Document } from "@langchain/core/documents";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { RecursiveCharacterTextSplitter } from "langchain/text_splitter";
+import { createHash } from "node:crypto";
 
 const langchainRouter = new Hono();
 
@@ -51,7 +55,56 @@ langchainRouter.post(paths.UPLOAD_FILE, async (c) => {
 
   const storage = new Storage(CONFIGS.filePath);
   const { filename } = await storage.save(file);
+  
+  // Clear existing caches and Qdrant vectors for this file
   await redisCache.clearFileCache(filename);
+  await qdrantService.deleteByFilename(filename);
+
+  // Process file: chunk, generate embeddings, and store in Qdrant
+  const raw = await storage.load(filename);
+  if (!raw) {
+    throw new HTTPException(500, { message: "Failed to load saved file" });
+  }
+
+  const text = convertBufferToString(raw);
+  const splitter = new RecursiveCharacterTextSplitter({
+    chunkSize: CONFIGS.chunkSize,
+    chunkOverlap: CONFIGS.chunkOverlap,
+    separators: ["\n\n", "\n", ".", " ", ""],
+  });
+
+  const docs = await splitter.createDocuments([text]);
+
+  // Generate embeddings for all chunks
+  const texts = docs.map((doc) => doc.pageContent);
+  const embeddings = await embeddingService.embedDocuments(texts);
+
+  // Ensure Qdrant collection exists
+  await qdrantService.ensureCollection(embeddingService.getDimensions());
+
+  // Prepare points for Qdrant
+  // Qdrant accepts string IDs, so we'll use a hash-based approach
+  const points = docs.map((doc, index) => {
+    // Create a unique ID from filename and index
+    const idString = `${filename}-${index}`;
+    const pointId = createHash("sha256")
+      .update(idString)
+      .digest("hex")
+      .substring(0, 16);
+
+    return {
+      id: pointId,
+      vector: embeddings[index],
+      payload: {
+        filename,
+        chunk_index: index,
+        page_content: doc.pageContent,
+      },
+    };
+  });
+
+  // Store in Qdrant
+  await qdrantService.upsertPoints(points);
 
   return c.json({ message: "File uploaded successfully", filename }, 200);
 });
@@ -74,32 +127,23 @@ langchainRouter.post(paths.ASK_QUESTION, async (c) => {
     );
   }
 
-  const chunksKey = chunkCacheKey(filename);
-  let docsJson = await redisCache.get(chunksKey, filename);
-  let docs: any[];
+  // Load file and create documents for BM25 (needed for hybrid search)
+  const storage = new Storage(CONFIGS.filePath);
+  const raw = await storage.load(filename);
 
-  if (docsJson) {
-    docs = JSON.parse(docsJson);
-  } else {
-    const storage = new Storage(CONFIGS.filePath);
-    const raw = await storage.load(filename);
+  if (!raw) throw new HTTPException(404, { message: "File not found" });
 
-    if (!raw) throw new HTTPException(404, { message: "File not found" });
+  const text = convertBufferToString(raw);
+  const splitter = new RecursiveCharacterTextSplitter({
+    chunkSize: CONFIGS.chunkSize,
+    chunkOverlap: CONFIGS.chunkOverlap,
+    separators: ["\n\n", "\n", ".", " ", ""],
+  });
 
-    const text = convertBufferToString(raw);
+  const docs = await splitter.createDocuments([text]);
 
-    const splitter = new RecursiveCharacterTextSplitter({
-      chunkSize: CONFIGS.chunkSize,
-      chunkOverlap: CONFIGS.chunkOverlap,
-      separators: ["\n\n", "\n", ".", " ", ""],
-    });
-
-    docs = await splitter.createDocuments([text]);
-
-    await redisCache.set(chunksKey, filename, JSON.stringify(docs));
-  }
-
-  const retriever = BM25Retriever.fromDocuments(docs, { k: CONFIGS.bm25K });
+  // Use hybrid retriever (BM25 + Qdrant vector search)
+  const retriever = new HybridRetriever(docs, filename, CONFIGS.hybridSearch.topK);
   const chain = createAnthropicRagChain(retriever);
   const answer = await chain.invoke(question);
 
@@ -126,6 +170,7 @@ langchainRouter.delete(paths.CLEAR_CACHE, async (c) => {
   }
 
   await redisCache.clearFileCache(filename);
+  await qdrantService.deleteByFilename(filename);
   return c.json({ message: "Cache cleared", filename }, 200);
 });
 
