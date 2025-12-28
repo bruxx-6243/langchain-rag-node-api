@@ -21,6 +21,10 @@ export const CONFIGS = {
       process.env.OPENAI_EMBEDDING_MODEL || "text-embedding-3-small",
     embeddingDimensions: 1536,
   },
+  anthropic: {
+    apiKey: process.env.ANTHROPIC_API_KEY,
+    model: process.env.ANTHROPIC_MODEL || "claude-3-haiku-20240307",
+  },
   hybridSearch: {
     bm25Weight: Number(process.env.HYBRID_SEARCH_BM25_WEIGHT) || 0.5,
     vectorWeight: Number(process.env.HYBRID_SEARCH_VECTOR_WEIGHT) || 0.5,

@@ -135,6 +135,7 @@ langchainRouter.post(paths.ASK_QUESTION, async (c) => {
     filename,
     CONFIGS.hybridSearch.topK
   );
+
   const chain = createAnthropicRagChain(retriever);
   const answer = await chain.invoke(question);
 
