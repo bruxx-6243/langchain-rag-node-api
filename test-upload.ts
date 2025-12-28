@@ -2,7 +2,13 @@ import * as fs from "fs";
 import * as path from "path";
 import { CONFIGS } from "./src/constants.js";
 
-// Simple test script to upload a file and populate Qdrant
+/**
+ * Uploads a sample file from the configured uploads directory to the local upload API and logs progress and results.
+ *
+ * Prefers a file whose name contains `cashlock_idea.txt`; if none exists, uses the first file in the directory.
+ * Logs file selection and size, sends the file to http://localhost:8080/api/upload, logs the API response (including returned filename),
+ * waits briefly for server-side processing, and logs a final readiness message. On error, logs the failure and a hint to start the API.
+ */
 async function testUpload() {
   try {
     // Read one of the existing files

@@ -24,6 +24,14 @@ interface Point {
   score?: number;
 }
 
+/**
+ * Checks whether the configured Qdrant collection exists and displays its metadata.
+ *
+ * If the collection exists, its information is displayed and returned.
+ *
+ * @returns The collection info object when the collection exists; `null` if the collection does not exist.
+ * @throws Rethrows any non-collection-not-found errors from the Qdrant client.
+ */
 async function checkCollectionAndShowInfo() {
   try {
     const collectionInfo = await client.getCollection(QDRANT_COLLECTION_NAME);
@@ -38,6 +46,11 @@ async function checkCollectionAndShowInfo() {
   }
 }
 
+/**
+ * Logs a notice that the configured collection is missing, then lists available collections or shows a tip to create one.
+ *
+ * If no collections exist, a message and a tip to upload a document are logged. If collections exist, each collection name is listed and a creation tip is shown.
+ */
 async function showAvailableCollections() {
   console.log(
     "⚠️  Collection doesn't exist yet. Showing available collections:"
@@ -60,6 +73,11 @@ async function showAvailableCollections() {
   );
 }
 
+/**
+ * Prints summary information about the configured Qdrant collection to the console.
+ *
+ * @param collectionInfo - Raw collection info object returned by the Qdrant client; used to read `points_count` and `config.params.vectors` (including `size` and `distance`) when available.
+ */
 function displayCollectionInfo(collectionInfo: any) {
   console.log("📊 Collection Information:");
   console.log("─".repeat(60));
@@ -81,6 +99,11 @@ function displayCollectionInfo(collectionInfo: any) {
   console.log();
 }
 
+/**
+ * Fetches points for the configured collection, computes per-file statistics, and displays the analysis.
+ *
+ * @param collectionInfo - Collection metadata object whose `points_count` property is used to determine whether to fetch points
+ */
 async function fetchAndAnalyzePoints(collectionInfo: any) {
   if (collectionInfo.points_count === 0) {
     console.log("⚠️  Collection is empty. No data to visualize.");
@@ -101,6 +124,15 @@ async function fetchAndAnalyzePoints(collectionInfo: any) {
   displayAnalysis(fileStats, points);
 }
 
+/**
+ * Aggregate per-file statistics from an array of points.
+ *
+ * @param points - The list of points to analyze (each may include payload fields like `filename`, `chunk_index`, and `page_content`).
+ * @returns A map keyed by filename. Each entry contains:
+ *  - `count`: number of points for that file,
+ *  - `chunks`: an array of observed chunk indices,
+ *  - `samples`: up to three content previews (each truncated to 100 characters)
+ */
 function analyzePoints(points: Point[]) {
   const fileStats = new Map<
     string,
@@ -131,6 +163,17 @@ function analyzePoints(points: Point[]) {
   return fileStats;
 }
 
+/**
+ * Print per-document statistics and an overall summary of the collection to the console.
+ *
+ * Logs each filename with its chunk count, the minimum and maximum chunk indices, and up to three sample content previews; then logs totals (documents, chunks) and the average chunks per document, and displays a small set of sample points.
+ *
+ * @param fileStats - Map keyed by filename with values containing:
+ *   - `count`: number of chunks for the file
+ *   - `chunks`: array of chunk indices present for the file
+ *   - `samples`: up to three short text previews extracted from the file's chunks
+ * @param points - Array of all points retrieved from the collection; used to render example points after the per-file summary
+ */
 function displayAnalysis(
   fileStats: Map<
     string,
@@ -175,6 +218,13 @@ function displayAnalysis(
   displaySamplePoints(points);
 }
 
+/**
+ * Prints a brief preview of up to the first five points, showing id, filename, chunk index, and a short content snippet.
+ *
+ * For each sampled point this logs the point number, ID, filename (or `N/A`), chunk index (or `N/A`), and a 150-character preview of `page_content` with newlines removed. After the samples it prints a short tips section with dashboard and API links.
+ *
+ * @param points - Array of points to sample; only the first five entries are displayed
+ */
 function displaySamplePoints(points: Point[]) {
   console.log("🔍 Sample Points (first 5):");
   console.log("─".repeat(80));
@@ -198,6 +248,11 @@ function displaySamplePoints(points: Point[]) {
   console.log();
 }
 
+/**
+ * Connects to Qdrant, displays collection information, and analyzes points for the configured collection.
+ *
+ * On unexpected errors, logs diagnostic details and exits the process with code 1.
+ */
 async function visualizeQdrantData() {
   try {
     console.log("\n🔍 Connecting to Qdrant...");
