@@ -133,7 +133,8 @@ langchainRouter.post(paths.ASK_QUESTION, async (c) => {
   const retriever = new HybridRetriever(
     docs,
     filename,
-    CONFIGS.hybridSearch.topK
+    CONFIGS.hybridSearch.topK,
+    "keyword"
   );
 
   const chain = createAnthropicRagChain(retriever);
