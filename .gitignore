@@ -35,5 +35,5 @@ uploads/
 langchain-rag-node-api/
 
 # architecture and images
-architecture.excalidraw
-image.png
+*.excalidraw
+*.png
