@@ -30,3 +30,10 @@ dist/
 
 # uploads
 uploads/
+
+# bruno api collection
+langchain-rag-node-api/
+
+# architecture and images
+architecture.excalidraw
+image.png
