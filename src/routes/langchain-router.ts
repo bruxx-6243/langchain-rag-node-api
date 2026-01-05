@@ -11,7 +11,7 @@ import { HTTPException } from "hono/http-exception";
 import { RecursiveCharacterTextSplitter } from "langchain/text_splitter";
 import { createHash } from "node:crypto";
 
-const langchainRouter = new Hono();
+const langchainRagRouter = new Hono();
 
 const paths = {
   UPLOAD_FILE: "/upload-file",
@@ -20,7 +20,7 @@ const paths = {
   CLEAR_CACHE: "/clear-cache/:filename",
 };
 
-langchainRouter.post(paths.UPLOAD_FILE, async (c) => {
+langchainRagRouter.post(paths.UPLOAD_FILE, async (c) => {
   const form = await c.req.formData();
   const file = form.get("file");
 
@@ -98,7 +98,7 @@ langchainRouter.post(paths.UPLOAD_FILE, async (c) => {
   return c.json({ message: "File uploaded successfully", filename }, 200);
 });
 
-langchainRouter.post(paths.ASK_QUESTION, async (c) => {
+langchainRagRouter.post(paths.ASK_QUESTION, async (c) => {
   const { question, filename } = await c.req.json();
 
   if (!question || !filename) {
@@ -145,7 +145,7 @@ langchainRouter.post(paths.ASK_QUESTION, async (c) => {
   return c.json({ message: "Generated", question, answer, cached: false }, 200);
 });
 
-langchainRouter.get(paths.CACHE_STATS, async (c) => {
+langchainRagRouter.get(paths.CACHE_STATS, async (c) => {
   const stats = await redisCache.getStats();
 
   if (!stats) {
@@ -155,7 +155,7 @@ langchainRouter.get(paths.CACHE_STATS, async (c) => {
   return c.json({ message: "Cache stats", stats }, 200);
 });
 
-langchainRouter.delete(paths.CLEAR_CACHE, async (c) => {
+langchainRagRouter.delete(paths.CLEAR_CACHE, async (c) => {
   const filename = c.req.param("filename");
 
   if (!filename) {
@@ -168,4 +168,4 @@ langchainRouter.delete(paths.CLEAR_CACHE, async (c) => {
   return c.json({ message: "Cache cleared", filename }, 200);
 });
 
-export default langchainRouter;
+export default langchainRagRouter;
