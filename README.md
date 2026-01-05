@@ -2,7 +2,10 @@
 
 A Node.js API that implements **Hybrid Retrieval-Augmented Generation (RAG)** using LangChain, combining **BM25 keyword search** and **Qdrant vector search** for superior document retrieval, powered by Anthropic's Claude model and Redis for intelligent caching.
 
-![](./image.png)
+<img width="1490" height="911" alt="Screenshot 2026-01-06 002548" src="https://github.com/user-attachments/assets/d623f544-7116-4eac-849c-a2b105140bd5" />
+<img width="1024" height="1024" alt="Gemini_Generated_Image_yj68zpyj68zpyj68" src="https://github.com/user-attachments/assets/b92ae306-324f-47e8-bd29-d9ffe8b3cbd1" />
+
+
 
 ## ✨ Features
 
